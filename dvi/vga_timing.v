@@ -23,24 +23,23 @@ module vga_timing(
     input pixel_clk,
     input rst_n,
 
-    output [9:0]hor_active_cnt,
-    output [9:0]ver_active_cnt,
+    output wire[11:0]hor_active_cnt,
+    output wire[11:0]ver_active_cnt,
 
-    output reg hs,
-    output reg vs,
-    output reg de
+    output hs,
+    output vs,
+    output de
 );
     `include "defines_vga.v"
 
     /* temp signal */
-    reg [9:0]hor_cnt;
-    reg [9:0]ver_cnt;
+    reg [11:0]hor_cnt;
+    reg [11:0]ver_cnt;
 
     /* output */
-    assign hor_active_cnt = (hor_cnt >= `HOR_SYNC + `HOR_BACK) && (hor_cnt < `HOR_SYNC + `HOR_BACK + `HOR_ACTIVE) ?
-                                hor_cnt - `HOR_SYNC - `HOR_BACK : 'd0;
-    assign ver_active_cnt = (ver_cnt >= `VER_SYNC + `VER_BACK) && (ver_cnt < `VER_SYNC + `VER_BACK + `VER_ACTIVE) ?
-                                ver_cnt - `VER_SYNC - `VER_BACK : 'd0;
+
+    assign hor_active_cnt = de ? hor_cnt - `HOR_SYNC - `HOR_BACK : 12'd0;
+    assign ver_active_cnt = de ? ver_cnt - `VER_SYNC - `VER_BACK : 12'd0;
 
     /* logic */
     //hor_cnt
@@ -66,34 +65,15 @@ module vga_timing(
             ver_cnt <= ver_cnt;
     end 
 
-    //hs
-    always@(posedge pixel_clk or negedge rst_n) begin
-        if(!rst_n)
-            hs <= 1'b1;
-        else if((hor_cnt >= 'd0) && (hor_cnt < `HOR_SYNC))
-            hs <= 1'b0;
-        else
-            hs <= 1'b1;
-    end
+     //hs
+    assign hs = rst_n ? ((hor_cnt >= 'd0) && (hor_cnt < `HOR_SYNC) ? `POLARITY : ~`POLARITY) : ~`POLARITY;
 
     //vs
-    always@(posedge pixel_clk or negedge rst_n) begin
-        if(!rst_n)
-            vs <= 1'b1;
-        else if((ver_cnt >= 'd0) && (ver_cnt < `VER_SYNC))
-            vs <= 1'b0;
-        else
-            vs <= 1'b1;
-    end
+    assign vs = rst_n ? ((ver_cnt >= 'd0) && (ver_cnt < `VER_SYNC) ? `POLARITY : ~`POLARITY) : ~`POLARITY;
 
     //de
-    always@(posedge pixel_clk or negedge rst_n) begin
-        if(!rst_n)
-            de <= 1'b0;
-        else if((hor_cnt >= `HOR_SYNC + `HOR_BACK) && (hor_cnt < `HOR_SYNC + `HOR_BACK + `HOR_ACTIVE) && (ver_cnt >= `VER_SYNC + `VER_BACK) && (ver_cnt <= `VER_SYNC + `VER_BACK + `VER_ACTIVE))
-            de <= 1'b1;
-        else
-            de <= 1'b0;
-    end
+    assign de = rst_n ?
+    ((hor_cnt >= `HOR_SYNC + `HOR_BACK) && (hor_cnt < `HOR_SYNC + `HOR_BACK + `HOR_ACTIVE) && 
+    (ver_cnt >= `VER_SYNC + `VER_BACK) && (ver_cnt <= `VER_SYNC + `VER_BACK + `VER_ACTIVE) ? 1'b1 : 1'b0) : 1'b0;
 
 endmodule
